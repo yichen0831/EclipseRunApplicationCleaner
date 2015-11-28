@@ -1,9 +1,20 @@
 package com.ychstudio;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
@@ -18,12 +29,14 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 
 public class Main extends Application {
 
@@ -37,6 +50,52 @@ public class Main extends Application {
 	
 	ObservableList<String> fileList;
 	Map<String, File> fileMap;
+	
+	class FileListCell extends ListCell<String> {
+
+		@Override
+		protected void updateItem(String item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item != null) {
+				String projectAttr = "";
+				String mainType = "";
+				
+				try {
+					File launchFile = fileMap.get(item);
+					DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
+					DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+					Document document = documentBuilder.parse(launchFile);
+					
+					document.getDocumentElement().normalize();
+					NodeList nodeList = document.getDocumentElement().getChildNodes();
+					for (int i = 0; i < nodeList.getLength(); i++) {
+						if (nodeList.item(i).getNodeType() == Node.ELEMENT_NODE) {
+							Element element = (Element) nodeList.item(i);
+							if (element.getAttribute("key").equals("org.eclipse.jdt.launching.MAIN_TYPE")) {
+								mainType = element.getAttribute("value");
+							}
+							if (element.getAttribute("key").equals("org.eclipse.jdt.launching.PROJECT_ATTR")) {
+								projectAttr = element.getAttribute("value");
+							}
+						}
+					}
+					
+				} catch (ParserConfigurationException e) {
+					e.printStackTrace();
+				} catch (SAXException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				
+				setText(item + "\n\t" + projectAttr + " - " + mainType);
+			}
+			else {
+				setText("");
+			}
+		}
+		
+	}
 
 	@Override
 	public void start(Stage primaryStage) throws Exception {
@@ -61,6 +120,7 @@ public class Main extends Application {
 			@Override
 			public void handle(Event event) {
 				String fileName = listView.getSelectionModel().getSelectedItem();
+				int index = listView.getSelectionModel().getSelectedIndex();
 				
 				Alert alert = new Alert(AlertType.CONFIRMATION, "Are you sure to delete \"" + fileName + "\"?", ButtonType.YES, ButtonType.NO);
 				alert.setHeaderText("");
@@ -69,7 +129,7 @@ public class Main extends Application {
 				if (answer.get().equals(ButtonType.YES)) {
 					File fileToDelete = fileMap.get(fileName);
 					if (fileToDelete.delete()) {
-						fileList.remove(fileName);
+						fileList.remove(index);
 					}
 				}
 
@@ -88,6 +148,15 @@ public class Main extends Application {
 		listView = new ListView<>();
 		listView.setItems(fileList);
 		
+		listView.setCellFactory(new Callback<ListView<String>, ListCell<String>>() {
+
+			@Override
+			public ListCell<String> call(ListView<String> param) {
+				return new FileListCell();
+			}
+			
+		});
+		
 		listView.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<String>() {
 			@Override
 			public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
@@ -100,6 +169,7 @@ public class Main extends Application {
 			}
 		});
 		
+		// initialize the list if the program is in the WorkPlace folder 
 		initFileList();
 		
 		VBox vBox = new VBox(6d);
@@ -126,6 +196,8 @@ public class Main extends Application {
 	}
 	
 	private void initFileList() {
+		// initialize the list if the program is in the WorkPlace folder 
+		
 		File launchesDir = new File(joinFolder(workSpaceFolder, META_PATH, DEBUG_CORE_PATH), LAUNCHES_PATH);
 		
 		if (!launchesDir.isDirectory()) {
@@ -143,6 +215,9 @@ public class Main extends Application {
 		if (!checkIsWorkSpaceFolder()) {
 			return;
 		}
+		
+		fileList.clear();
+		fileMap.clear();
 		
 		File launchesDir = new File(joinFolder(workSpaceFolder, META_PATH, DEBUG_CORE_PATH), LAUNCHES_PATH);
 		
