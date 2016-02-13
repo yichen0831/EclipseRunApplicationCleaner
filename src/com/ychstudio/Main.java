@@ -64,6 +64,9 @@ public class Main extends Application {
 				
 				try {
 					File launchFile = fileMap.get(item);
+					if (launchFile == null) {
+						return;
+					}
 					DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
 					DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
 					Document document = documentBuilder.parse(launchFile);
