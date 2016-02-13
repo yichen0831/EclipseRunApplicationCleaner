@@ -51,6 +51,8 @@ public class Main extends Application {
 	ObservableList<String> fileList;
 	Map<String, File> fileMap;
 	
+	Button deleteAllButton;
+	
 	class FileListCell extends ListCell<String> {
 
 		@Override
@@ -126,10 +128,15 @@ public class Main extends Application {
 				alert.setHeaderText("");
 				Optional<ButtonType> answer = alert.showAndWait();
 				
-				if (answer.get().equals(ButtonType.YES)) {
+				if (answer.isPresent() && answer.get().equals(ButtonType.YES)) {
 					File fileToDelete = fileMap.get(fileName);
 					if (fileToDelete.delete()) {
 						fileList.remove(index);
+					}
+					else {
+						alert = new Alert(AlertType.ERROR, "Cannot delete " + fileName);
+						alert.setHeaderText("");
+						alert.showAndWait();
 					}
 				}
 
@@ -137,11 +144,40 @@ public class Main extends Application {
 		});
 		deleteButton.setDisable(true);
 		
+		deleteAllButton = new Button("Delete All");
+		deleteAllButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<Event>() {
+
+			@Override
+			public void handle(Event event) {
+				Alert alert = new Alert(AlertType.CONFIRMATION, "Are you sure to delete all?", ButtonType.YES, ButtonType.NO);
+				alert.setHeaderText("");
+				Optional<ButtonType> answer = alert.showAndWait();
+				
+				if (answer.isPresent() && answer.get().equals(ButtonType.YES)) {
+					for (int i = fileList.size() - 1; i >= 0; i--) {
+						File fileToDelete = fileMap.get(fileList.get(i));
+						if (!fileToDelete.delete()) {
+							alert = new Alert(AlertType.ERROR, "Cannot delete " + fileList.get(i));
+							alert.setHeaderText("");
+							alert.showAndWait();
+						}
+						else {
+							fileList.remove(i);
+						}
+					}
+				}
+			}
+			
+		});
+		deleteAllButton.setDisable(true);
+		
 		HBox hBox = new HBox();
-		HBox.setMargin(openButton, new Insets(6d));
-		HBox.setMargin(deleteButton, new Insets(6d));
+		HBox.setMargin(openButton, new Insets(6));
+		HBox.setMargin(deleteButton, new Insets(6));
+		HBox.setMargin(deleteAllButton, new Insets(6));
 		hBox.getChildren().add(openButton);
 		hBox.getChildren().add(deleteButton);
+		hBox.getChildren().add(deleteAllButton);
 		
 		fileMap = new HashMap<>();
 		fileList = FXCollections.observableArrayList();
@@ -209,6 +245,13 @@ public class Main extends Application {
 			fileList.add(file.getName());
 			fileMap.put(file.getName(), file);
 		}
+		
+		if (!fileList.isEmpty()) {
+			deleteAllButton.setDisable(false);
+		}
+		else {
+			deleteAllButton.setDisable(true);
+		}
 	}
 	
 	private void getFileList() {
@@ -229,6 +272,13 @@ public class Main extends Application {
 		for (File file : launchesDir.listFiles()) {
 			fileList.add(file.getName());
 			fileMap.put(file.getName(), file);
+		}
+		
+		if (!fileList.isEmpty()) {
+			deleteAllButton.setDisable(false);
+		}
+		else {
+			deleteAllButton.setDisable(true);
 		}
 		
 	}
